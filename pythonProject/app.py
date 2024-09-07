@@ -6,9 +6,10 @@ import matplotlib.pyplot as plt
 import io
 import seaborn as sns
 
+
 def crear_app():
     app = Flask(__name__)
-    app.secret_key = 'supersecretkey'
+    app.secret_key = 'supersecretkey'  # Asegúrate de usar una clave secreta segura en producción
 
     UPLOAD_FOLDER = 'uploads'
     ALLOWED_EXTENSIONS = {'xlsx'}
@@ -47,32 +48,47 @@ def crear_app():
 
     @app.route("/plot.png")
     def plot_png():
-        latest_file = max([os.path.join(app.config['UPLOAD_FOLDER'], f) for f in os.listdir(app.config['UPLOAD_FOLDER'])], key=os.path.getctime)
-        data = pd.read_excel(latest_file)
+        try:
+            # Encontrar el archivo más reciente
+            latest_file = max(
+                [os.path.join(app.config['UPLOAD_FOLDER'], f) for f in os.listdir(app.config['UPLOAD_FOLDER'])],
+                key=os.path.getctime
+            )
+            data = pd.read_excel(latest_file)
 
-        # Agrupar por fecha y sumar los importes
-        data['FECHA DE LA FACTURA'] = pd.to_datetime(data['FECHA DE LA FACTURA'])
-        grouped_data = data.groupby('FECHA DE LA FACTURA')['IMPORTE TOTAL DE LA VENTA'].sum().reset_index()
+            # Agrupar por fecha y sumar los importes
+            data['FECHA DE LA FACTURA'] = pd.to_datetime(data['FECHA DE LA FACTURA'])
+            grouped_data = data.groupby('FECHA DE LA FACTURA')['IMPORTE TOTAL DE LA VENTA'].sum().reset_index()
 
-        # Crear la gráfica
-        sns.set(style="whitegrid")
-        plt.figure(figsize=(10, 6))
-        ax = sns.lineplot(x=grouped_data['FECHA DE LA FACTURA'], y=grouped_data['IMPORTE TOTAL DE LA VENTA'], marker="o", color='dodgerblue')
+            # Crear la gráfica
+            sns.set(style="whitegrid")
+            plt.figure(figsize=(10, 6))
+            ax = sns.lineplot(
+                x=grouped_data['FECHA DE LA FACTURA'],
+                y=grouped_data['IMPORTE TOTAL DE LA VENTA'],
+                marker="o",
+                color='dodgerblue'
+            )
 
-        ax.set_xlabel('Fecha', fontsize=12)
-        ax.set_ylabel('Importe Total de la Venta', fontsize=12)
-        ax.set_title('Importe Total de la Venta por Día', fontsize=14)
-        plt.xticks(rotation=45)  # Rotar las fechas para mejor visibilidad
+            ax.set_xlabel('Fecha', fontsize=12)
+            ax.set_ylabel('Importe Total de la Venta', fontsize=12)
+            ax.set_title('Importe Total de la Venta por Día', fontsize=14)
+            plt.xticks(rotation=45)  # Rotar las fechas para mejor visibilidad
 
-        # Guardar el gráfico en un objeto de bytes
-        img = io.BytesIO()
-        plt.savefig(img, format='png', bbox_inches='tight')
-        img.seek(0)
-        plt.close()
+            # Guardar el gráfico en un objeto de bytes
+            img = io.BytesIO()
+            plt.savefig(img, format='png', bbox_inches='tight')
+            img.seek(0)
+            plt.close()
 
-        return send_file(img, mimetype='image/png')
+            return send_file(img, mimetype='image/png')
+
+        except Exception as e:
+            flash(f"Error al generar el gráfico: {str(e)}", "danger")
+            return redirect(url_for('index'))
 
     return app
+
 
 app = crear_app()
 
